@@ -115,14 +115,22 @@ func (m *methods) processIncomingMessage(c *Channel, msg *protocol.Message) {
 
 		var result []reflect.Value
 		if f.ArgsPresent {
-			//data type should be defined for unmarshall
-			data := f.getArgs()
-			err := json.Unmarshal([]byte(msg.Args), &data)
-			if err != nil {
-				return
-			}
+			// fix for invalid JSON in msg.Args
+			// it happens when client's socket.emit passes more than one parameter
+			// if callback function accepts []byte, pass to the raw data without attempt to json.Unmarshal
+			if f.Args == reflect.TypeOf([]byte{}) {
+				a := []reflect.Value{reflect.ValueOf(c), reflect.ValueOf([]byte(msg.Args))}
+				result = f.Func.Call(a)
+			} else {
+				//data type should be defined for unmarshall
+				data := f.getArgs()
+				err := json.Unmarshal([]byte(msg.Args), &data)
+				if err != nil {
+					return
+				}
 
-			result = f.callFunc(c, data)
+				result = f.callFunc(c, data)
+			}
 		} else {
 			result = f.callFunc(c, &struct{}{})
 		}
