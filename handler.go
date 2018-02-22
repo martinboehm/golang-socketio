@@ -99,13 +99,21 @@ func (m *methods) processIncomingMessage(c *Channel, msg *protocol.Message) {
 			return
 		}
 
-		data := f.getArgs()
-		err := json.Unmarshal([]byte(msg.Args), &data)
-		if err != nil {
-			return
-		}
+		// fix for invalid JSON in msg.Args
+		// it happens when client's socket.emit passes more than one parameter
+		// if callback function accepts []byte, pass to the raw data without attempt to json.Unmarshal
+		if f.Args == reflect.TypeOf([]byte{}) {
+			a := []reflect.Value{reflect.ValueOf(c), reflect.ValueOf([]byte(msg.Args))}
+			f.Func.Call(a)
+		} else {
+			data := f.getArgs()
+			err := json.Unmarshal([]byte(msg.Args), &data)
+			if err != nil {
+				return
+			}
 
-		f.callFunc(c, data)
+			f.callFunc(c, data)
+		}
 
 	case protocol.MessageTypeAckRequest:
 		f, ok := m.findMethod(msg.Method)
