@@ -194,30 +194,33 @@ func (s *Server) List(room string) []*Channel {
 
 }
 
-func (c *Channel) BroadcastTo(room, method string, args interface{}) {
+func (c *Channel) BroadcastTo(room, method string, args interface{}) int {
 	if c.server == nil {
-		return
+		return 0
 	}
-	c.server.BroadcastTo(room, method, args)
+	return c.server.BroadcastTo(room, method, args)
 }
 
 /**
 Broadcast message to all room channels
 */
-func (s *Server) BroadcastTo(room, method string, args interface{}) {
+func (s *Server) BroadcastTo(room, method string, args interface{}) int {
 	s.channelsLock.RLock()
 	defer s.channelsLock.RUnlock()
 
 	roomChannels, ok := s.channels[room]
 	if !ok {
-		return
+		return 0
 	}
 
+	c := 0
 	for cn := range roomChannels {
 		if cn.IsAlive() {
+			c++
 			go cn.Emit(method, args)
 		}
 	}
+	return c
 }
 
 /**
